@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.vitest/
+coverage/
+src/generated/
+.DS_Store
+*.log
+# Documentation (temporarily ignored)
+*.md
