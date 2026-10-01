@@ -6,5 +6,6 @@ coverage/
 src/generated/
 .DS_Store
 *.log
+.worktrees/
 # Documentation (temporarily ignored)
 *.md
