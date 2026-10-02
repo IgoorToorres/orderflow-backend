@@ -1,10 +1,13 @@
-import express, { type Express } from 'express';
+import express, {
+  Router,
+  type Express,
+  type Router as ExpressRouter,
+} from 'express';
 import { errorHandler } from './middlewares/error-handler.js';
-import { apiRouter } from './routes/index.js';
 import { healthRouter } from './routes/health/health.js';
 import { AppError } from './shared/errors/app-error.js';
 
-export function createApp(): Express {
+export function createApp(apiRouter: ExpressRouter = Router()): Express {
   const app = express();
 
   app.use(express.json({ limit: '100kb' }));

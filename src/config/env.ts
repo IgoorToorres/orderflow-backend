@@ -13,6 +13,10 @@ export const envSchema = z.object({
     .refine((value) => value.startsWith('mysql://'), {
       message: 'must use mysql:// protocol',
     }),
+
+  JWT_SECRET: z.string().min(32),
+
+  JWT_EXPIRES_IN: z.coerce.number().int().min(60).max(3600).default(900),
 });
 
 export type Env = z.infer<typeof envSchema>;

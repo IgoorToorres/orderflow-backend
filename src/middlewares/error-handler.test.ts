@@ -1,6 +1,6 @@
 import express, { type RequestHandler } from 'express';
-import request from 'supertest';
 import { describe, expect, it } from 'vitest';
+import { withTestApp } from '../../tests/helpers/http.js';
 import { errorHandler } from './error-handler.js';
 import { AppError } from '../shared/errors/app-error.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -33,7 +33,9 @@ describe('errorHandler', () => {
       });
     });
 
-    const response = await request(app).get('/test');
+    const response = await withTestApp(app, async (client) =>
+      client.get('/test'),
+    );
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({
@@ -66,7 +68,9 @@ describe('errorHandler', () => {
       throw prismaError;
     });
 
-    const response = await request(app).get('/test');
+    const response = await withTestApp(app, async (client) =>
+      client.get('/test'),
+    );
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({
@@ -84,7 +88,9 @@ describe('errorHandler', () => {
       throw new Error('DATABASE_URL=mysql://user:password@localhost/db');
     });
 
-    const response = await request(app).get('/test');
+    const response = await withTestApp(app, async (client) =>
+      client.get('/test'),
+    );
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
