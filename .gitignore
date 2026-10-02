@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.test
 .vitest/
 coverage/
 src/generated/
