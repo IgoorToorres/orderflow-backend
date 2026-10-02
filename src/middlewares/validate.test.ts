@@ -1,7 +1,7 @@
 import express from 'express';
-import request from 'supertest';
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
+import { withTestApp } from '../../tests/helpers/http.js';
 import { errorHandler } from './error-handler.js';
 import { validate } from './validate.js';
 
@@ -35,10 +35,12 @@ function createValidationApp() {
 
 describe('validate', () => {
   it('returns all validation errors using sanitized field names', async () => {
-    const response = await request(createValidationApp())
-      .post('/users/not-a-uuid')
-      .query({ page: '0' })
-      .send({ email: 'secret-invalid-email' });
+    const response = await withTestApp(createValidationApp(), async (client) =>
+      client
+        .post('/users/not-a-uuid')
+        .query({ page: '0' })
+        .send({ email: 'secret-invalid-email' }),
+    );
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
@@ -66,10 +68,12 @@ describe('validate', () => {
   });
 
   it('makes parsed and coerced data available to the controller', async () => {
-    const response = await request(createValidationApp())
-      .post('/users/550e8400-e29b-41d4-a716-446655440000')
-      .query({ page: '2' })
-      .send({ email: 'customer@example.com' });
+    const response = await withTestApp(createValidationApp(), async (client) =>
+      client
+        .post('/users/550e8400-e29b-41d4-a716-446655440000')
+        .query({ page: '2' })
+        .send({ email: 'customer@example.com' }),
+    );
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
