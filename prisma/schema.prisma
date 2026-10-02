@@ -6,3 +6,103 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Char(36)
+  name         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role         UserRole @default(CUSTOMER)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  orders Order[]
+
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(uuid()) @db.Char(36)
+  name        String   @db.VarChar(150)
+  description String?  @db.Text
+  priceCents  BigInt   @map("price_cents") @db.BigInt
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id         String      @id @default(uuid()) @db.Char(36)
+  userId     String      @map("user_id") @db.Char(36)
+  status     OrderStatus @default(PENDING)
+  totalCents BigInt      @map("total_cents") @db.BigInt
+  createdAt  DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items           OrderItem[]
+  processedEvents ProcessedEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String @id @default(uuid()) @db.Char(36)
+  orderId             String @map("order_id") @db.Char(36)
+  productId           String @map("product_id") @db.Char(36)
+  productNameSnapshot String @map("product_name_snapshot") @db.VarChar(150)
+  unitPriceCents      BigInt @map("unit_price_cents") @db.BigInt
+  quantity            Int    @db.UnsignedInt
+  subtotalCents       BigInt @map("subtotal_cents") @db.BigInt
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productId])
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Char(36)
+  eventType   String    @map("event_type") @db.VarChar(100)
+  aggregateId String    @map("aggregate_id") @db.Char(36)
+  payload     Json
+  publishedAt DateTime? @map("published_at") @db.DateTime(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error") @db.Text
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId     String   @id @map("event_id") @db.Char(36)
+  orderId     String   @map("order_id") @db.Char(36)
+  processedAt DateTime @default(now()) @map("processed_at") @db.DateTime(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("processed_events")
+}
