@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { Express } from 'express';
+import { Router, type Express } from 'express';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { withTestApp } from '../../../../tests/helpers/http.js';
 import { createApp } from '../../../app.js';
 import type { User } from '../../../generated/prisma/client.js';
 import { UserRole } from '../../../generated/prisma/enums.js';
-import { createApiRouter } from '../../../routes/index.js';
 import type {
   CreateCustomerInput,
   UserRepository,
@@ -13,6 +12,7 @@ import type {
 import { passwordHasher } from '../security/password.js';
 import { createTokenService, type TokenService } from '../security/token.js';
 import { createAuthService } from '../service/auth.service.js';
+import { createAuthRouter } from './auth.routes.js';
 
 class InMemoryUserRepository implements UserRepository {
   readonly users: User[] = [];
@@ -27,6 +27,7 @@ class InMemoryUserRepository implements UserRepository {
 
   async createCustomer(input: CreateCustomerInput): Promise<User> {
     const now = new Date();
+
     const user: User = {
       id: randomUUID(),
       name: input.name,
@@ -38,6 +39,7 @@ class InMemoryUserRepository implements UserRepository {
     };
 
     this.users.push(user);
+
     return user;
   }
 }
@@ -49,6 +51,7 @@ describe('auth routes', () => {
 
   beforeEach(() => {
     repository = new InMemoryUserRepository();
+
     tokenService = createTokenService({
       secret: 'a'.repeat(64),
       expiresInSeconds: 900,
@@ -60,7 +63,11 @@ describe('auth routes', () => {
       tokenService,
     });
 
-    app = createApp(createApiRouter({ authService }));
+    const apiRouter = Router();
+
+    apiRouter.use('/auth', createAuthRouter(authService));
+
+    app = createApp(apiRouter);
   });
 
   it('registers a normalized customer without exposing passwordHash', async () => {
@@ -73,13 +80,16 @@ describe('auth routes', () => {
     );
 
     expect(response.status).toBe(201);
+
     expect(response.body.user).toMatchObject({
       name: 'Igor Torres',
       email: 'igor@example.com',
       role: UserRole.CUSTOMER,
     });
+
     expect(response.body.user).not.toHaveProperty('passwordHash');
     expect(repository.users).toHaveLength(1);
+
     expect(repository.users[0]?.passwordHash).not.toContain(
       'strong-password-123',
     );
@@ -107,14 +117,15 @@ describe('auth routes', () => {
       password: 'strong-password-123',
     };
 
-    const responses = await withTestApp(app, async (client) => {
+    const response = await withTestApp(app, async (client) => {
       await client.post('/api/v1/auth/register').send(registration);
 
       return client.post('/api/v1/auth/register').send(registration);
     });
 
-    expect(responses.status).toBe(409);
-    expect(responses.body).toEqual({
+    expect(response.status).toBe(409);
+
+    expect(response.body).toEqual({
       error: {
         code: 'EMAIL_ALREADY_EXISTS',
         message: 'Email already registered',
@@ -137,6 +148,7 @@ describe('auth routes', () => {
     });
 
     expect(response.status).toBe(200);
+
     expect(response.body).toMatchObject({
       tokenType: 'Bearer',
       expiresIn: 900,
@@ -170,18 +182,23 @@ describe('auth routes', () => {
           password: 'wrong-password',
         });
 
-        return { wrongPassword, unknownUser };
+        return {
+          wrongPassword,
+          unknownUser,
+        };
       },
     );
 
     expect(wrongPassword.status).toBe(401);
     expect(unknownUser.status).toBe(401);
+
     expect(wrongPassword.body).toEqual({
       error: {
         code: 'INVALID_CREDENTIALS',
         message: 'Invalid email or password',
       },
     });
+
     expect(unknownUser.body).toEqual(wrongPassword.body);
   });
 });
