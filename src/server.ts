@@ -7,6 +7,8 @@ import { PrismaUserRepository } from './modules/auth/repository/auth.repository.
 import { passwordHasher } from './modules/auth/security/password.js';
 import { createTokenService } from './modules/auth/security/token.js';
 import { createAuthService } from './modules/auth/service/auth.service.js';
+import { PrismaProductRepository } from './modules/products/repository/product.repository.js';
+import { createProductService } from './modules/products/service/product.service.js';
 import { createApiRouter } from './routes/index.js';
 
 const env = loadEnv();
@@ -24,8 +26,13 @@ const authService = createAuthService({
   tokenService,
 });
 
+const productRepository = new PrismaProductRepository(prisma);
+const productService = createProductService(productRepository);
+
 const apiRouter = createApiRouter({
   authService,
+  productService,
+  tokenService,
 });
 
 const server = createApp(apiRouter).listen(env.PORT, () => {
